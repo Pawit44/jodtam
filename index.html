@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ตัวช่วยอ่านทีละบรรทัด</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Taviraj:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F5F0;
+    --surface:#FFFFFF;
+    --ink:#26251F;
+    --ink-soft:#8A887D;
+    --ink-faint:#C3C0B2;
+    --accent:#3F5B52;
+    --accent-soft:#E7EDE9;
+    --border:#E7E4D9;
+    --error:#A3492F;
+    --error-soft:#F5E9E4;
+    --radius:18px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+
+  body{
+    margin:0;
+    font-family:'IBM Plex Sans Thai', sans-serif;
+    background:var(--bg);
+    background-image:radial-gradient(circle at 15% 10%, rgba(63,91,82,0.05), transparent 45%);
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+
+  .card{
+    width:100%;
+    max-width:900px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(38,37,31,0.04), 0 16px 40px rgba(38,37,31,0.07);
+    overflow:hidden;
+  }
+
+  .pad{ padding:40px 40px 32px; }
+
+  h1{
+    font-size:18px;
+    font-weight:600;
+    letter-spacing:0.01em;
+    margin:0 0 6px;
+  }
+
+  .sub{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:0 0 24px;
+    line-height:1.6;
+  }
+
+  /* ---------- input section ---------- */
+
+  textarea{
+    width:100%;
+    height:220px;
+    padding:18px;
+    font-family:'IBM Plex Sans Thai', sans-serif;
+    font-size:15.5px;
+    line-height:1.75;
+    color:var(--ink);
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:12px;
+    resize:vertical;
+    outline:none;
+    display:block;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  textarea::placeholder{ color:var(--ink-faint); }
+  textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  textarea.has-error{ border-color:var(--error); box-shadow:0 0 0 3px var(--error-soft); }
+
+  .field-footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    min-height:20px;
+    margin-top:10px;
+  }
+
+  .char-count{
+    font-size:12.5px;
+    color:var(--ink-faint);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .error-msg{
+    font-size:12.5px;
+    color:var(--error);
+    display:none;
+    align-items:center;
+    gap:5px;
+  }
+  .error-msg.show{ display:flex; }
+
+  /* ---------- buttons ---------- */
+
+  button{
+    font-family:'IBM Plex Sans Thai', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:background-color .15s ease, color .15s ease, opacity .15s ease, transform .08s ease;
+  }
+  button:active{ transform:translateY(1px); }
+  button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  .btn-block{
+    width:100%;
+    padding:15px;
+    margin-top:18px;
+    background:var(--ink);
+    color:#FFF;
+  }
+  .btn-block:hover{ background:#3A392F; }
+
+  .icon{ width:18px; height:18px; flex-shrink:0; }
+
+  /* ---------- display section ---------- */
+
+  #display-section{ display:none; }
+
+  .progress-track{ height:3px; width:100%; background:var(--border); }
+  .progress-fill{
+    height:100%;
+    background:var(--accent);
+    width:0%;
+    transition:width .3s cubic-bezier(.4,0,.2,1);
+  }
+
+  .meta-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
+
+  .eyebrow{
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+
+  #progress{
+    font-size:13px;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink-faint);
+  }
+  #progress b{ color:var(--ink); font-weight:600; }
+
+  .stage{
+    position:relative;
+    min-height:190px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:14px;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+    touch-action:pan-y;
+  }
+  .stage:hover .stage-glow{ opacity:1; }
+  .stage-glow{
+    position:absolute;
+    inset:0;
+    border-radius:14px;
+    background:var(--accent-soft);
+    opacity:0;
+    transition:opacity .2s ease;
+    pointer-events:none;
+  }
+
+  #text-display{
+    position:relative;
+    font-family:'Taviraj', serif;
+    font-size:34px;
+    font-weight:500;
+    line-height:1.5;
+    text-align:center;
+    padding:10px 6px;
+    color:var(--ink);
+    white-space:normal;
+    word-break:normal;
+    overflow-wrap:normal;
+    hyphens:none;
+    max-width:100%;
+    transition:opacity .18s ease, transform .18s ease, font-size .12s ease;
+  }
+  #text-display.transitioning{
+    opacity:0;
+    transform:translateY(6px);
+  }
+
+  .btn-group{ display:flex; gap:12px; margin-top:22px; }
+  .btn-nav{ flex:1; padding:16px; }
+
+  #prev-btn{ background:var(--accent-soft); color:var(--accent); }
+  #prev-btn:hover:not(:disabled){ background:#DCE5DF; }
+  #prev-btn:disabled{ background:var(--bg); color:var(--ink-faint); cursor:not-allowed; }
+
+  #next-btn{ background:var(--accent); color:#FFF; }
+  #next-btn:hover{ background:#354D45; }
+  #next-btn.is-done{ background:#8C6A3F; }
+  #next-btn.is-done:hover{ background:#77592F; }
+
+  .hint{
+    font-size:12.5px;
+    color:var(--ink-faint);
+    text-align:center;
+    margin-top:18px;
+    line-height:1.8;
+  }
+  .hint.tap-hint{ display:none; }
+
+  kbd{
+    font-family:'IBM Plex Sans Thai', sans-serif;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:5px;
+    color:var(--ink-soft);
+    font-size:11.5px;
+    font-weight:600;
+    padding:2px 6px;
+    margin:0 1px;
+  }
+
+  .edit-link{
+    background:none;
+    color:var(--ink-soft);
+    font-weight:500;
+    font-size:14px;
+    width:100%;
+    padding:14px;
+    margin-top:6px;
+    border-top:1px solid var(--border);
+    border-radius:0;
+  }
+  .edit-link:hover{ color:var(--ink); background:var(--bg); }
+
+  @media (hover:none){
+    .hint.key-hint{ display:none; }
+    .hint.tap-hint{ display:block; }
+  }
+
+  @media (max-width:480px){
+    .pad{ padding:28px 22px 22px; }
+    #text-display{ font-size:26px; }
+    .stage{ min-height:150px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition-duration:0.01ms !important; }
+  }
+
+  /* ---------- credit footer ---------- */
+
+  .credit{
+    margin:28px -40px -32px;
+    padding:14px 24px;
+    text-align:center;
+    border-top:1px solid var(--border);
+    background:var(--bg);
+    border-radius:0 0 var(--radius) var(--radius);
+  }
+
+  @media (max-width:480px){
+    .credit{ margin:24px -22px -22px; padding:13px 16px; }
+  }
+
+  .credit-line{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:6px 8px;
+    margin:0;
+    font-size:12.5px;
+    line-height:1.6;
+  }
+
+  .credit-line .icon{
+    width:13px;
+    height:13px;
+    color:var(--accent);
+    flex-shrink:0;
+  }
+
+  .credit-tag{
+    color:var(--ink-faint);
+  }
+
+  .credit-name{
+    font-weight:600;
+    color:var(--accent);
+  }
+
+  .credit-dot{
+    color:var(--ink-faint);
+  }
+
+  .credit-role{
+    color:var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- หน้า 1: วางข้อความ -->
+  <div id="input-section" class="pad">
+    <h1>วางข้อความที่ต้องการอ่าน</h1>
+    <p class="sub">ระบบจะแบ่งข้อความเป็นบรรทัดสั้นๆ ให้อัตโนมัติ เพื่อให้อ่านและจดตามได้ง่าย</p>
+
+    <textarea id="raw-text" placeholder="วางข้อความ บทความ หรือเนื้อหาที่ต้องการอ่านที่นี่..."></textarea>
+
+    <div class="field-footer">
+      <span class="error-msg" id="error-msg">
+        <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        กรุณาใส่ข้อความก่อนเริ่มอ่าน
+      </span>
+      <span class="char-count" id="char-count"></span>
+    </div>
+
+    <button class="btn-block" onclick="startReading()">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      เริ่มอ่าน
+    </button>
+
+    <div class="credit">
+      <p class="credit-line">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
+        <span class="credit-tag">พัฒนาโดย</span>
+        <span class="credit-name">Mr. Atsawin Niranam (UR.)</span>
+        <span class="credit-dot">·</span>
+        <span class="credit-role">วิศวกรรมคอมพิวเตอร์</span>
+        <span class="credit-dot">·</span>
+        <span class="credit-role">มหาวิทยาลัยเทคโนโลยีสุรนารี</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- หน้า 2: แสดงผลทีละบรรทัด -->
+  <div id="display-section">
+    <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+
+    <div class="pad" style="padding-top:26px;">
+      <div class="meta-row">
+        <span class="eyebrow">กำลังอ่าน</span>
+        <span id="progress">บรรทัดที่ <b>0</b> จาก 0</span>
+      </div>
+
+      <div class="stage" id="stage" onclick="handleStageClick(event)">
+        <div class="stage-glow"></div>
+        <div id="text-display"></div>
+      </div>
+
+      <div class="btn-group">
+        <button id="prev-btn" class="btn-nav" onclick="prevLine(event)">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          ย้อนกลับ
+        </button>
+        <button id="next-btn" class="btn-nav" onclick="nextLine(event)">
+          <span id="next-btn-label">ถัดไป</span>
+          <svg id="next-btn-icon" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+
+      <p class="hint key-hint">
+        กด <kbd>Space</kbd> <kbd>Enter</kbd> <kbd>→</kbd> เพื่อไปต่อ &nbsp;·&nbsp; กด <kbd>←</kbd> เพื่อย้อนกลับ
+      </p>
+      <p class="hint tap-hint">
+        แตะข้อความเพื่อไปบรรทัดถัดไป &nbsp;·&nbsp; ปัดไปทางขวาเพื่อย้อนกลับ
+      </p>
+    </div>
+
+    <button class="edit-link" onclick="editNewText()">
+      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+      แก้ไข / วางข้อความใหม่
+    </button>
+  </div>
+
+</div>
+
+<script>
+let lines = [];
+let currentIndex = 0;
+let animating = false;
+
+const defaultText = `เว็บนี้คือตัวช่วยอ่านข้อความยาวๆ ทีละท่อนสั้นๆ เพื่อให้อ่านหรือจดตามได้ง่ายขึ้น
+วิธีใช้งาน: ลบข้อความตัวอย่างนี้ออก แล้ววางข้อความหรือบทความที่ต้องการอ่านลงในช่องนี้แทน
+จากนั้นกดปุ่ม "เริ่มอ่าน" ระบบจะแบ่งเนื้อหาออกเป็นท่อนสั้นๆ อ่านง่ายให้โดยอัตโนมัติ ไม่ตัดคำกลางคำ
+ระหว่างอ่าน แตะที่ข้อความหรือกดปุ่ม "ถัดไป" เพื่อไปยังท่อนถัดไป หรือปัดย้อนกลับเพื่อดูท่อนก่อนหน้า
+บนคอมพิวเตอร์สามารถกด Space, Enter หรือลูกศรบนคีย์บอร์ดแทนการคลิกเมาส์ได้เช่นกัน
+เมื่ออ่านจบต้องการเริ่มใหม่ กดปุ่ม "แก้ไข / วางข้อความใหม่" ด้านล่างของหน้าอ่านได้ทุกเมื่อ
+พัฒนาโดย Mr. Atsawin Niranam (UR.) ภาควิชาวิศวกรรมคอมพิวเตอร์ มหาวิทยาลัยเทคโนโลยีสุรนารี`;
+
+const rawTextEl = document.getElementById('raw-text');
+const charCountEl = document.getElementById('char-count');
+const errorMsgEl = document.getElementById('error-msg');
+
+rawTextEl.value = defaultText;
+updateCharCount();
+
+rawTextEl.addEventListener('input', () => {
+    updateCharCount();
+    if (rawTextEl.value.trim().length > 0) clearError();
+});
+
+rawTextEl.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        startReading();
+    }
+});
+
+function updateCharCount(){
+    const len = rawTextEl.value.trim().length;
+    charCountEl.textContent = len > 0 ? `${len.toLocaleString('th-TH')} ตัวอักษร` : '';
+}
+
+function showError(){
+    rawTextEl.classList.add('has-error');
+    errorMsgEl.classList.add('show');
+    rawTextEl.focus();
+}
+
+function clearError(){
+    rawTextEl.classList.remove('has-error');
+    errorMsgEl.classList.remove('show');
+}
+
+function startReading() {
+    const rawText = rawTextEl.value.trim();
+    if (!rawText) {
+        showError();
+        return;
+    }
+    clearError();
+
+    lines = buildReadingChunks(rawText);
+
+    if (lines.length === 0) return;
+
+    currentIndex = 0;
+    document.getElementById('input-section').style.display = 'none';
+    document.getElementById('display-section').style.display = 'block';
+    renderLine(true);
+}
+
+// ความยาวต่อการแสดงผลหนึ่งครั้ง (นับตัวอักษร) — ปรับได้ตามต้องการ
+const CHUNK_MIN_CHARS = 55;
+const CHUNK_MAX_CHARS = 110;
+
+function buildReadingChunks(rawText){
+    // ย่อหน้าที่เว้นบรรทัดว่างไว้ ถือเป็นจุดตัดที่ตั้งใจ ส่วนขึ้นบรรทัดใหม่เดี่ยวๆ ภายในย่อหน้าจะไหลรวมกัน
+    const paragraphs = rawText.split(/\r?\n\s*\n/);
+    const result = [];
+
+    paragraphs.forEach(paragraph => {
+        const flat = paragraph.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!flat) return;
+
+        const words = flat.split(' ');
+        const chunks = [];
+        let current = '';
+
+        words.forEach(word => {
+            const candidate = current ? current + ' ' + word : word;
+            if (candidate.length <= CHUNK_MAX_CHARS) {
+                current = candidate;
+            } else {
+                if (current) chunks.push(current);
+                current = word; // คำเดี่ยวที่ยาวเกินก็ไม่ตัด ปล่อยให้กล่องขยาย/ย่อฟอนต์จัดการแทน
+            }
+        });
+        if (current) chunks.push(current);
+
+        // รวมท่อนสุดท้ายที่สั้นเกินไปเข้ากับท่อนก่อนหน้า เพื่อไม่ให้มีบรรทัดสั้นห้วนๆ
+        for (let i = chunks.length - 1; i > 0; i--) {
+            if (chunks[i].length < CHUNK_MIN_CHARS) {
+                const merged = chunks[i - 1] + ' ' + chunks[i];
+                if (merged.length <= CHUNK_MAX_CHARS + 30) {
+                    chunks[i - 1] = merged;
+                    chunks.splice(i, 1);
+                }
+            }
+        }
+
+        result.push(...chunks);
+    });
+
+    return result;
+}
+
+const MAX_FONT_SIZE_DESKTOP = 34;
+const MAX_FONT_SIZE_MOBILE = 26;
+const MIN_FONT_SIZE = 19;
+const MAX_LINES = 3;
+
+function getMaxFont(){
+    return window.innerWidth <= 480 ? MAX_FONT_SIZE_MOBILE : MAX_FONT_SIZE_DESKTOP;
+}
+
+function lineCountOf(el){
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+    return Math.round(el.scrollHeight / lineHeight);
+}
+
+function fitTextBlock(el){
+    let fontSize = getMaxFont();
+    el.style.fontSize = fontSize + 'px';
+
+    // shrink font until it fits within MAX_LINES — card width stays fixed, never resizes
+    let guard = 0;
+    while (lineCountOf(el) > MAX_LINES && fontSize > MIN_FONT_SIZE && guard < 60) {
+        fontSize -= 1;
+        el.style.fontSize = fontSize + 'px';
+        guard++;
+    }
+}
+
+window.addEventListener('resize', () => {
+    const el = document.getElementById('text-display');
+    if (el && el.innerText) fitTextBlock(el);
+});
+
+function renderLine(instant){
+    const textDisplay = document.getElementById('text-display');
+    const progressDisplay = document.getElementById('progress');
+    const progressFill = document.getElementById('progress-fill');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const nextLabel = document.getElementById('next-btn-label');
+    const nextIcon = document.getElementById('next-btn-icon');
+
+    const paint = () => {
+        textDisplay.innerText = lines[currentIndex];
+        fitTextBlock(textDisplay);
+        progressDisplay.innerHTML = `บรรทัดที่ <b>${currentIndex + 1}</b> จาก ${lines.length}`;
+        progressFill.style.width = `${((currentIndex + 1) / lines.length) * 100}%`;
+        prevBtn.disabled = (currentIndex === 0);
+
+        if (currentIndex === lines.length - 1) {
+            nextLabel.textContent = "เริ่มใหม่";
+            nextIcon.innerHTML = '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>';
+            nextBtn.classList.add('is-done');
+        } else {
+            nextLabel.textContent = "ถัดไป";
+            nextIcon.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+            nextBtn.classList.remove('is-done');
+        }
+        textDisplay.classList.remove('transitioning');
+        animating = false;
+    };
+
+    if (instant) {
+        paint();
+        return;
+    }
+
+    animating = true;
+    textDisplay.classList.add('transitioning');
+    setTimeout(paint, 130);
+}
+
+function nextLine(e) {
+    if (e) e.stopPropagation();
+    if (animating) return;
+    currentIndex = (currentIndex < lines.length - 1) ? currentIndex + 1 : 0;
+    renderLine(false);
+}
+
+function prevLine(e) {
+    if (e) e.stopPropagation();
+    if (animating || currentIndex === 0) return;
+    currentIndex--;
+    renderLine(false);
+}
+
+function handleStageClick(e){
+    nextLine(e);
+}
+
+function editNewText() {
+    document.getElementById('display-section').style.display = 'none';
+    document.getElementById('input-section').style.display = 'block';
+    rawTextEl.focus();
+    rawTextEl.select();
+}
+
+document.addEventListener('keydown', function(event) {
+    if (document.getElementById('display-section').style.display === 'block') {
+        if (event.code === 'Space' || event.code === 'Enter' || event.code === 'ArrowRight' || event.code === 'ArrowDown') {
+            event.preventDefault();
+            nextLine();
+        } else if (event.code === 'ArrowLeft' || event.code === 'ArrowUp' || event.code === 'Backspace') {
+            event.preventDefault();
+            prevLine();
+        } else if (event.code === 'Escape') {
+            editNewText();
+        }
+    }
+});
+
+/* ---------- swipe support ---------- */
+let touchStartX = 0;
+let touchStartY = 0;
+const stageEl = document.getElementById('stage');
+
+stageEl.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+}, { passive: true });
+
+stageEl.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    const dy = e.changedTouches[0].screenY - touchStartY;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx > 0) { prevLine(); } else { nextLine(); }
+    }
+}, { passive: true });
+</script>
+
+</body>
+</html>
