@@ -1,4 +1,4 @@
-# ตัวช่วยอ่านทีละบรรทัด — Line-by-Line Reading Assistant
+# ตัวช่วยอ่าน — Line-by-Line Reading Assistant
 
 > คำอธิบายเว็บและวิธีใช้งาน (ไทย / อังกฤษ)
 > App description and usage guide (Thai / English)
@@ -35,6 +35,6 @@ This website is a reading assistant that breaks long text into short, easy-to-fo
 
 <div align="center">
 
-*ตัวช่วยอ่านทีละบรรทัด · Line-by-Line Reading Assistant*
+*ตัวช่วยอ่าน · Line-by-Line Reading Assistant*
 
 </div>
